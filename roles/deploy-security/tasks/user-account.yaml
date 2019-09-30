@@ -1,0 +1,82 @@
+# Copyright 2019 baicells Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+- name: Renew "/etc/ssh/sshd_config"
+  copy:
+    src: roles/deploy-security/files/user-account/sshd_config
+    dest: /etc/ssh/
+    backup: yes
+    force: yes
+
+- name: Restart sshd.service
+  shell: "systemctl restart sshd"
+
+- block:
+  - name: Renew "/etc/pam.d/su"
+    copy:
+      src: roles/deploy-security/files/user-account/su
+      dest: /etc/pam.d/
+      backup: yes
+      force: yes
+
+  - name: Renew "/etc/login.defs"
+    copy:
+      src: roles/deploy-security/files/user-account/login.defs
+      dest: /etc/
+      backup: yes
+      force: yes
+
+  - name: Add "/etc/security/limits.d/unique.conf"
+    copy:
+      src: roles/deploy-security/files/user-account/unique.conf
+      dest: /etc/security/limits.d/
+      backup: yes
+      force: yes
+
+- block:
+  - name: Users with login privileges in the system[run]
+    shell: "awk -F: '($7==\"/bin/bash\"){print $1}' /etc/passwd"
+    register: ret
+
+  - name: Users with login privileges in the system[show] 
+    debug:
+      var: ret.stdout_lines
+
+- block:
+  - name: Renew "/etc/profile"
+    copy:
+      src: roles/deploy-security/files/user-account/profile
+      dest: /etc/
+      backup: yes
+      force: yes
+
+  - name: Renew "/etc/bashrc"
+    copy:
+      src: roles/deploy-security/files/user-account/bashrc
+      dest: /etc/
+      backup: yes
+      force: yes
+
+  - name: Create "/home/{{ user_default.name }}/history.log"
+    file:
+      path: /home/{{ user_default.name }}/history.log
+      state: touch
+      owner: "{{ user_default.name }}"
+      group: "{{ user_default.name }}"
+      mode: 0666
+
+  - name: Enable the new configuration
+    shell: "source /etc/profile; source /etc/bashrc"
+

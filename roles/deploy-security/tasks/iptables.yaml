@@ -1,0 +1,179 @@
+# Copyright 2019 baicells Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Create chains
+  shell: "iptables -t filter -N {{ item.name }}"
+  ignore_errors: true
+  loop: "{{ iptables.chains }}"
+
+- name: Use the chains
+  iptables:
+    chain: INPUT
+    action: insert
+    rule_num: "{{ item.priority }}"
+    protocol: all
+    jump: "{{ item.name }}"
+    state: present
+    flush: false
+  loop: "{{ iptables.chains }}"
+
+- name: Clean the chains
+  iptables:
+    chain: "{{ item.name }}"
+    flush: true
+  loop: "{{ iptables.chains }}"
+
+- block:
+  - name: Response to ping queries disabled
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}"
+      protocol: icmp 
+      icmp_type: echo-request  
+      jump: DROP 
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"        
+
+  - name: ICMP accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: icmp 
+      jump: ACCEPT 
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"        
+
+  - name: RELATED,ESTABLISHED accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      ctstate: RELATED,ESTABLISHED
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"        
+
+  - name: TCP 50683 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: tcp
+      match: tcp 
+      destination_port: 50683
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"        
+
+  - name: TCP 50685 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: tcp
+      match: tcp 
+      destination_port: 50685
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "WCG"        
+
+  - name: UDP 500 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: udp
+      match: udp 
+      destination_port: 500
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "SEGW"        
+
+  - name: UDP 4500 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: udp
+      match: udp
+      destination_port: 4500
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "SEGW"        
+  
+  - name: ESP accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: esp
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "SEGW"        
+  
+  - name: SCTP 36412 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: sctp
+      match: sctp
+      destination_port: 36412
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "WCG"        
+  
+  - name: UDP 2152 accept
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}" 
+      source: "{{ item.1.accept_sourceip }}" 
+      protocol: udp
+      match: udp
+      destination_port: 2152
+      jump: ACCEPT
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+    when: item.0.name == "WCG"        
+
+
+  - name: Other drop
+    iptables:
+      chain: "{{ item.0.name }}"
+      in_interface: "{{ item.1.name }}"
+      protocol: all
+      jump: DROP
+      state: present
+      flush: false
+    loop: "{{ iptables.chains | subelements('interfaces') }}"
+
+- name: Save iptables
+  shell: "service iptables save"

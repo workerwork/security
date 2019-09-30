@@ -1,0 +1,50 @@
+# Copyright 2019 baicells Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+- name: Check the system
+  tags: "check-system" 
+  debug:
+    msg: "System release is {{ system.type }}{{ system.release }}"
+  when: ansible_distribution == (system.type) and ansible_distribution_major_version == (system.release)
+
+- name: pre-env
+  tags: "pre-env"
+  block:
+  - include: pre-env.yaml
+
+- name: password
+  tags: "password"
+  block:
+  - include: password.yaml
+
+- name: user-account
+  tags: "user-account"
+  block:
+  - include: user-account.yaml
+
+- name: system-security
+  tags: "system-security"
+  block:
+  - include: system-security.yaml
+
+- name: iptables
+  tags: "iptables"
+  block:
+  - include: iptables.yaml
+
+- name: cron
+  tags: "cron"
+  block:
+  - include: cron.yaml
